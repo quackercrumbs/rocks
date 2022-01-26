@@ -1,6 +1,8 @@
 use hyper::Client;
 use hyper::body;
-use hyper_tls::HttpsConnector; use configparser::ini::Ini;
+use hyper::client::connect::HttpConnector;
+use hyper_tls::HttpsConnector;
+use configparser::ini::Ini;
 use env_logger;
 use env_logger::Env;
 use std::collections::HashMap;
@@ -80,22 +82,32 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     private_config.load("config/private.ini")?;
     let nasa_api_key = private_config.get("topsecrets","NASA_API_KEY").expect("could not find NASA_API_KEY");
     let database_url = private_config.get("topsecrets","DATABASE_URL").expect("could not find DATABASE_URL");
+    // initialize db connection
     let connection = db::establish_connnection(&database_url);
     info!("Connected to database");
 
+    // initialize API client
     let https = HttpsConnector::new();
     let client =  Client::builder().build::<_, hyper::Body>(https);
-    let asteroid_uri = format!("https://api.nasa.gov/neo/rest/v1/feed?start_date=2015-09-07&end_date=2015-09-08&api_key={}", nasa_api_key).parse()?;
 
+    // Retrieve NASA data
+    let asteroid_data : NearEarthObjectResponse = retrieve_asteroid_data(client, "2015-09-07", "2015-09-08", &nasa_api_key).await?;
+    debug!("asteroid_data: {:?}", asteroid_data);
+
+    // todo: Load NASA data onto db
+
+    Ok(())
+}
+
+async fn retrieve_asteroid_data(client: Client<HttpsConnector<HttpConnector>>, start_date: &str, end_date: &str, api_key: &str) -> Result<NearEarthObjectResponse, Box<dyn std::error::Error + Send + Sync>> {
+    let asteroid_uri = format!("https://api.nasa.gov/neo/rest/v1/feed?start_date={}&end_date={}&api_key={}", start_date, end_date, api_key).parse()?;
     info!("Making API call to {:?}", asteroid_uri);
     let mut resp = client.get(asteroid_uri).await?;
-    debug!("response: {:?}", resp);
+    trace!("response: {:?}", resp);
     let body = resp.body_mut();
     let body_bytes = body::to_bytes(body).await?;
     trace!("response body: {:?}", body_bytes);
 
     let asteroid_data : NearEarthObjectResponse = serde_json::from_slice(&body_bytes).unwrap();
-    info!("asteroid_data: {:?}", asteroid_data);
-
-    Ok(())
+    Ok(asteroid_data)
 }
