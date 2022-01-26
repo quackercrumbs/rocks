@@ -1,7 +1,6 @@
 use hyper::Client;
 use hyper::body;
-use hyper_tls::HttpsConnector;
-use configparser::ini::Ini;
+use hyper_tls::HttpsConnector; use configparser::ini::Ini;
 use env_logger;
 use env_logger::Env;
 use std::collections::HashMap;
@@ -64,6 +63,13 @@ struct NearEarthObjectResponse {
     near_earth_objects: HashMap<String, Vec<NearEarthObject>>
 }
 
+mod db {
+    use diesel::prelude::*;
+    pub fn establish_connnection(database_url: &str) -> SqliteConnection {
+        SqliteConnection::establish(database_url).unwrap_or_else(|_| panic!("Error connecting to {}", database_url))
+    }
+}
+
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     env_logger::Builder::from_env(Env::default().default_filter_or("info")).init();
@@ -73,6 +79,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     let mut private_config = Ini::new();
     private_config.load("config/private.ini")?;
     let nasa_api_key = private_config.get("topsecrets","NASA_API_KEY").expect("could not find NASA_API_KEY");
+    let database_url = private_config.get("topsecrets","DATABASE_URL").expect("could not find DATABASE_URL");
+    let connection = db::establish_connnection(&database_url);
+    info!("Connected to database");
 
     let https = HttpsConnector::new();
     let client =  Client::builder().build::<_, hyper::Body>(https);
