@@ -1,5 +1,5 @@
 extern crate rocks;
-use rocks::schema::api_response::dsl;
+use rocks::db_util;
 
 use diesel::prelude::*;
 use diesel::SqliteConnection;
@@ -15,13 +15,6 @@ use env_logger::Env;
 #[macro_use]
 extern crate log;
 
-mod db {
-    use diesel::prelude::*;
-    pub fn establish_connnection(database_url: &str) -> SqliteConnection {
-        SqliteConnection::establish(database_url).unwrap_or_else(|_| panic!("Error connecting to {}", database_url))
-    }
-}
-
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     env_logger::Builder::from_env(Env::default().default_filter_or("info")).init();
@@ -34,7 +27,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     let database_url = private_config.get("topsecrets","DATABASE_URL").expect("could not find DATABASE_URL");
 
     // initialize db connection
-    let connection = db::establish_connnection(&database_url);
+    let connection = db_util::establish_connnection(&database_url);
     info!("Connected to database");
 
     // initialize API client
