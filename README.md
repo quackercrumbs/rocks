@@ -32,4 +32,8 @@ diesel setup --database-url=<path to db>
 
 // example
 diesel setup --database-url='/home/calvinq/projects/rocks-data/asteroids.db'
+
+// running the migrations
+diesel migration run --database-url='/home/calvinq/projects/rocks-data/asteroids.db'
+diesel migration redo --database-url='/home/calvinq/projects/rocks-data/asteroids.db'
 ```
