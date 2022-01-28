@@ -37,3 +37,9 @@ diesel setup --database-url='/home/calvinq/projects/rocks-data/asteroids.db'
 diesel migration run --database-url='/home/calvinq/projects/rocks-data/asteroids.db'
 diesel migration redo --database-url='/home/calvinq/projects/rocks-data/asteroids.db'
 ```
+
+### Quick Start
+```
+cargo run --bin importer -- --start-date 2022-01-08
+cargo run --bin importer -- --help
+```
