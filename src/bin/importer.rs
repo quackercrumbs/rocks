@@ -11,15 +11,36 @@ use hyper_tls::HttpsConnector;
 use configparser::ini::Ini;
 use env_logger;
 use env_logger::Env;
+use chrono::prelude::*;
 
 #[macro_use]
 extern crate log;
 
+use clap::Parser;
+
+#[derive(Parser,Debug)]
+#[clap(version, about, long_about = None)]
+struct Args {
+    #[clap(short, long)]
+    start_date: String,
+    #[clap(short, long, default_value_t = 7)]
+    days_out: u8
+}
+
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     env_logger::Builder::from_env(Env::default().default_filter_or("info")).init();
-    info!("Starting up");
 
+    let args = Args::parse();
+    info!("{:?}", args);
+
+    // process start_date and end date from input
+    let start_date = NaiveDate::parse_from_str(&args.start_date, "%F")?;
+    let end_date = start_date + chrono::Duration::days(args.days_out as i64);
+    let start_date = start_date.format("%Y-%m-%d").to_string();
+    let end_date = end_date.format("%Y-%m-%d").to_string();
+
+    info!("Starting up");
     // read configs
     let mut private_config = Ini::new();
     private_config.load("config/private.ini")?;
@@ -35,13 +56,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     let client =  Client::builder().build::<_, hyper::Body>(https);
 
     // Retrieve NASA data
-    let start_date = "2015-09-07";
-    let end_date = "2015-09-08";
-    let asteroid_data = retrieve_asteroid_data(client, start_date, end_date, &nasa_api_key).await?;
-    debug!("asteroid_data: {:?}", asteroid_data);
+    let asteroid_data = retrieve_asteroid_data(client, &start_date, &end_date, &nasa_api_key).await?; debug!("asteroid_data: {:?}", asteroid_data);
 
     // Load NASA data onto db
-    load_asteroid_api_response(&connection, start_date, end_date, &asteroid_data).await;
+    load_asteroid_api_response(&connection, &start_date, &end_date, &asteroid_data).await;
 
     Ok(())
 }
