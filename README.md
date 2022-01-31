@@ -4,6 +4,7 @@
 
 ### Secrets
 ```
+echo "[topsecrets]" >> config/private.ini
 echo "DATABASE_URL = /home/calvinq/projects/rocks/data/asteroids.db" >> config/private.ini
 echo "NASA_API_KEY = 123456" >> config/private.ini
 ```
@@ -20,7 +21,7 @@ Diesel Getting Started: https://diesel.rs/guides/getting-started
 Also might be worth installed `diesel-cli`. Note: we are only using sqlite3 in this project
 ```
 sudo apt install sqlite3
-sudo apt install sqlite3-dev
+sudo apt install libsqlite3-dev
 cargo install diesel_cli --no-default-features --features "sqlite-bundled"
 ```
 
