@@ -4,3 +4,7 @@ members = [
     "rocks",
     "app"
 ]
+
+# was running into compilation issues for the bevy app
+# https://github.com/bevyengine/bevy/issues/3205#issuecomment-980636548
+resolver = "2"

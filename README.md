@@ -2,6 +2,11 @@
 
 ## Setup
 
+Use the nightly tool chain
+```
+rustup default nightly-x86_64-pc-windows-msvc
+```
+
 ### Secrets (required, at least for the moment )
 ```
 echo "[topsecrets]" >> config/private.ini
