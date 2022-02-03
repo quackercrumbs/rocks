@@ -32,6 +32,7 @@ echo "NASA_API_KEY = 123456" >> config/private.ini
 
 #### Additional
 - (optional) Install `diesel-cli` if you need to run db imports
+  - `cargo install diesel_cli --no-default-features --features "sqlite-bundled"`
 
 ### Setting up db from scratch (optional)
 
