@@ -66,8 +66,14 @@ cargo run -p importer -- --help
 // querying the database (you can use sqlite as well)
 cargo run -p importer --bin query_responses
 
+// running the data viewer
+cargo run -p app
+
 ```
 
 ## References
 - Diesel Getting Started: https://diesel.rs/guides/getting-started
 - Bevy Getting Started: https://bevyengine.org/learn/book/getting-started/setup/
+
+## Credits
+"Earth Day Map" (https://www.solarsystemscope.com/textures/) by solarsystemscope is licensed under Creative Commons Attribution (http://creativecommons.org/licenses/by/4.0/).

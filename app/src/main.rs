@@ -1,11 +1,22 @@
 use bevy::prelude::*;
 
-fn initialize_world(mut commands: Commands, mut meshes: ResMut<Assets<Mesh>>, mut materials: ResMut<Assets<StandardMaterial>>) {
-    // globe/earth
-    commands.spawn_bundle(PbrBundle {
-        mesh: meshes.add(Mesh::from(shape::Icosphere { radius: 1.0, subdivisions: 2 })),
-        material: materials.add(Color::rgb(0.3, 0.5, 0.3).into()),
-        ..Default::default()
+fn initialize_world(
+    mut commands: Commands,
+    mut meshes: ResMut<Assets<Mesh>>,
+    mut materials: ResMut<Assets<StandardMaterial>>,
+    ass: Res<AssetServer>,
+) {
+    // note that we have to include the `Scene0` label
+    let earth_model = ass.load("models/earth.glb#Scene0");
+
+    // to be able to position our 3d model:
+    // spawn a parent entity with a Transform and GlobalTransform
+    // and spawn our gltf as a scene under it
+    commands.spawn_bundle((
+        Transform::from_xyz(0.0, 0.0, 0.0),
+        GlobalTransform::identity(),
+    )).with_children(|parent| {
+        parent.spawn_scene(earth_model);
     });
 
     // light
