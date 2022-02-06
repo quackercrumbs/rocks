@@ -19,17 +19,6 @@ fn initialize_world(
         parent.spawn_scene(earth_model);
     });
 
-    // light
-    commands.spawn_bundle(PointLightBundle {
-        point_light: PointLight {
-            intensity: 1500.0,
-            shadows_enabled: false,
-            ..Default::default()
-        },
-        transform: Transform::from_xyz(4.0, 8.0, 4.0),
-        ..Default::default()
-    });
-
     // camera
     commands.spawn_bundle(PerspectiveCameraBundle {
         transform: Transform::from_xyz(-2.0, 2.5, 5.0).looking_at(Vec3::ZERO, Vec3::Y),
@@ -40,7 +29,11 @@ fn initialize_world(
 pub struct RocksPlugin;
 impl Plugin for RocksPlugin {
     fn build(&self, app: &mut App) {
-        app.add_startup_system(initialize_world);
+        app.add_startup_system(initialize_world)
+        .insert_resource(AmbientLight {
+            color: Color::WHITE,
+            brightness: 1.0 / 4.0f32
+        });
     }
 }
 
