@@ -54,3 +54,35 @@ pub mod models {
         near_earth_objects: HashMap<String, Vec<NearEarthObject>>
     }
 }
+
+pub mod client {
+    use hyper::{Client, client::HttpConnector, body};
+    use hyper_tls::HttpsConnector;
+
+    use super::models::NearEarthObjectResponse;
+
+    pub struct NearEarthObjectClient {
+        api_key: String,
+        client: Client<HttpsConnector<HttpConnector>>
+    }
+
+    impl NearEarthObjectClient {
+        pub fn new(api_key: &str) -> Self {
+            let https = HttpsConnector::new();
+            let client =  Client::builder().build::<_, hyper::Body>(https);
+            Self {
+                api_key: String::from(api_key),
+                client
+            }
+        }
+
+        pub async fn get_near_earth_objects(&self, start_date: &str, end_date: &str) -> Result<NearEarthObjectResponse, Box<dyn std::error::Error + Send + Sync>> {
+            let asteroid_uri = format!("https://api.nasa.gov/neo/rest/v1/feed?start_date={}&end_date={}&api_key={}", start_date, end_date, self.api_key).parse()?;
+            let mut resp = self.client.get(asteroid_uri).await?;
+            let body = resp.body_mut();
+            let body_bytes = body::to_bytes(body).await?;
+            let asteroid_data: NearEarthObjectResponse = serde_json::from_slice(&body_bytes).unwrap();
+            Ok(asteroid_data)
+        }
+    }
+}
