@@ -3,6 +3,17 @@
 Random collection of notes throughout development process.
 ----
 
+02/09
+- I was thinking that before i start making calls to the NASA api, i would want some way to control when to send the request and what parameters to send with it
+- To do that, i should probably have some UI components
+- I tried following the bevy ui example, but couldn't figure out a way to implement an editable text field (or didn't feel like doing the work)
+  - The example that i was following: https://github.com/bevyengine/bevy/blob/main/examples/ui/ui.rs
+- Found this bevy_egui library via the bevy assets store (https://bevyengine.org/assets/#ui)
+  - Seemed promissing so i'll stick to using that.
+  - There was a cool working running example (assessible in the browser too!)
+    - https://mvlabat.github.io/bevy_egui_web_showcase/index.html
+
+
 02/07
 - was having trouble trying to connect diesel sqlite as a resource.
   - Was getting compilation errors saying that some of the fields in SqliteConnection were RefCell and didn't implement the Sync Trait

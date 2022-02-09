@@ -1,6 +1,7 @@
 use bevy::prelude::*;
 use configparser::ini::Ini;
 use rocks::nasa;
+use bevy_egui::{egui, EguiContext, EguiPlugin};
 
 fn initialize_world(
     mut commands: Commands,
@@ -42,8 +43,16 @@ impl Plugin for RocksPlugin {
             color: Color::WHITE,
             brightness: 1.0 / 4.0f32
         })
+        .add_system(ui_example)
+        .add_plugin(EguiPlugin)
         .insert_resource(near_earth_object_client);
     }
+}
+
+fn ui_example(mut egui_context: ResMut<EguiContext>) {
+    egui::Window::new("Controls").show(egui_context.ctx_mut(), |ui| {
+        ui.label("world");
+    });
 }
 
 fn main() {
