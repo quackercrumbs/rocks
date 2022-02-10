@@ -46,19 +46,25 @@ impl Plugin for RocksPlugin {
         .add_plugin(EguiPlugin)
         .init_resource::<UiState>()
         .add_system(controls_ui)
+        .add_event::<NearEarchObjectUpdateRequestEvent>()
+        .add_system(near_earth_object_update_request_handler)
         .insert_resource(near_earth_object_client);
     }
 }
 
-#[derive(Default)]
+#[derive(Default, Debug)]
 struct UiState {
     start_date: String,
     end_date: String,
 }
 
+#[derive(Debug)]
+struct NearEarchObjectUpdateRequestEvent(UiState);
+
 fn controls_ui(
     mut egui_context: ResMut<EguiContext>,
     mut ui_state: ResMut<UiState>,
+    mut ev_update_request: EventWriter<NearEarchObjectUpdateRequestEvent>,
 ) {
     egui::Window::new("Controls").show(egui_context.ctx_mut(), |ui| {
 
@@ -75,10 +81,22 @@ fn controls_ui(
             let query_button = ui.button("Query");
             if query_button.clicked() {
                 // fire off event to query for Nasa data (and possibly recreate NEOs)
-                println!("params: start_date={} end_date={}", &ui_state.start_date, &ui_state.end_date)
+                info!("params: start_date={} end_date={}", &ui_state.start_date, &ui_state.end_date);
+                ev_update_request.send(NearEarchObjectUpdateRequestEvent(UiState{
+                    start_date: ui_state.start_date.clone(),
+                    end_date: ui_state.end_date.clone(),
+                }));
             }
         });
     });
+}
+
+fn near_earth_object_update_request_handler(mut ev_update_request: EventReader<NearEarchObjectUpdateRequestEvent>) {
+    // just need to read the first one, don't care about the others because they will be cleared at the next frame
+    // also we want to ignore all the spam clicks
+    if let Some(request) = ev_update_request.iter().next() {
+        info!("Update request recieved! {:?}", request)
+    }
 }
 
 fn main() {
