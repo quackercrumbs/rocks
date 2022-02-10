@@ -43,15 +43,41 @@ impl Plugin for RocksPlugin {
             color: Color::WHITE,
             brightness: 1.0 / 4.0f32
         })
-        .add_system(ui_example)
         .add_plugin(EguiPlugin)
+        .init_resource::<UiState>()
+        .add_system(controls_ui)
         .insert_resource(near_earth_object_client);
     }
 }
 
-fn ui_example(mut egui_context: ResMut<EguiContext>) {
+#[derive(Default)]
+struct UiState {
+    start_date: String,
+    end_date: String,
+}
+
+fn controls_ui(
+    mut egui_context: ResMut<EguiContext>,
+    mut ui_state: ResMut<UiState>,
+) {
     egui::Window::new("Controls").show(egui_context.ctx_mut(), |ui| {
-        ui.label("world");
+
+        ui.horizontal(|ui| {
+            ui.label("Start date: ");
+            ui.text_edit_singleline(&mut ui_state.start_date);
+        });
+        ui.horizontal(|ui| {
+            ui.label("End date: ");
+            ui.text_edit_singleline(&mut ui_state.end_date);
+        });
+
+        ui.horizontal(|ui| {
+            let query_button = ui.button("Query");
+            if query_button.clicked() {
+                // fire off event to query for Nasa data (and possibly recreate NEOs)
+                println!("params: start_date={} end_date={}", &ui_state.start_date, &ui_state.end_date)
+            }
+        });
     });
 }
 
