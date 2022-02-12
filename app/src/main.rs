@@ -1,4 +1,8 @@
+use std::time::{Instant, Duration};
+use tokio::runtime::Runtime;
+
 use bevy::prelude::*;
+use bevy::tasks::IoTaskPool;
 use configparser::ini::Ini;
 use rocks::nasa;
 use bevy_egui::{egui, EguiContext, EguiPlugin};
@@ -6,7 +10,6 @@ use bevy_egui::{egui, EguiContext, EguiPlugin};
 fn initialize_world(
     mut commands: Commands,
     ass: Res<AssetServer>,
-    client: Res<nasa::client::NearEarthObjectClient>
 ) {
     // note that we have to include the `Scene0` label
     let earth_model = ass.load("models/earth.glb#Scene0");
@@ -48,6 +51,7 @@ impl Plugin for RocksPlugin {
         .add_system(controls_ui)
         .add_event::<NearEarchObjectUpdateRequestEvent>()
         .add_system(near_earth_object_update_request_handler)
+        .add_system(read_new_near_earth_object_data_stream)
         .insert_resource(near_earth_object_client);
     }
 }
@@ -91,18 +95,70 @@ fn controls_ui(
     });
 }
 
-fn near_earth_object_update_request_handler(mut ev_update_request: EventReader<NearEarchObjectUpdateRequestEvent>) {
+fn near_earth_object_update_request_handler(
+    mut ev_update_request: EventReader<NearEarchObjectUpdateRequestEvent>,
+    data_request_sender: Res<NearEarthObjectDataRequestSender>,
+) {
     // just need to read the first one, don't care about the others because they will be cleared at the next frame
     // also we want to ignore all the spam clicks
     if let Some(request) = ev_update_request.iter().next() {
-        info!("Update request recieved! {:?}", request)
+        info!("Update request recieved! {:?}", request);
+        if let Err(e) = data_request_sender.0.send(UiState{start_date: "sender".into(), end_date: "sender".into()}) {
+            error!("Error when trying to send data request {:?}", e)
+        }
+
     }
 }
 
-fn main() {
+fn read_new_near_earth_object_data_stream(
+    mut data_receiver: ResMut<NearEarthObjectDataReciever>,
+) {
+    match data_receiver.0.try_recv() {
+        Ok(v) => {
+            info!("New near earth object data! {:?}", v);
+        },
+        Err(Empty) => {
+            // do nothing
+        },
+        Err(e) => {
+            error!("Error when trying to read from data_reciever: {:?}", e);
+        }
+    }
+}
+
+struct NearEarthObjectDataReciever(tokio::sync::mpsc::UnboundedReceiver<UiState>);
+struct NearEarthObjectDataRequestSender(tokio::sync::mpsc::UnboundedSender<UiState>);
+
+fn main() -> Result<(), Box<dyn std::error::Error>>{
+    // setup runtime to handle external calls
+    // create channel used to communicate between bevy ECS to tokio
+    let (tx_request_data, mut rx_request_data) = tokio::sync::mpsc::unbounded_channel::<UiState>();
+    let (tx_response_data, rx_response_data) = tokio::sync::mpsc::unbounded_channel::<UiState>();
+
+    // Create the runtime
+    let rt  = Runtime::new()?;
+    rt.spawn( async move {
+        loop {
+            // listen for data retrieval requests
+            match rx_request_data.recv().await {
+                Some(v) =>{
+                    println!("Got message in tokio: {:?}", v);
+                    if let Err(_) = tx_response_data.send(UiState {start_date: "".into(), end_date: "".into()}) {
+                        println!("The reciever dropped for response_data");
+                    }
+                },
+                None => println!("sender dropped")
+            }
+        }
+    });
+
     App::new()
         .insert_resource(Msaa {samples: 4})
         .add_plugins(DefaultPlugins)
         .add_plugin(RocksPlugin)
+        .insert_resource(NearEarthObjectDataReciever(rx_response_data))
+        .insert_resource(NearEarthObjectDataRequestSender(tx_request_data))
         .run();
+    
+    Ok(())
 }
