@@ -2,56 +2,56 @@ pub mod models {
     use std::collections::HashMap;
     use serde::{Serialize,Deserialize};
     #[derive(Serialize,Deserialize,Debug)]
-    struct Links {
-      next: Option<String>,
-      prev: Option<String>,
+    pub struct Links {
+      pub next: Option<String>,
+      pub prev: Option<String>,
       #[serde(rename = "self")]
-      self_link: Option<String>
+      pub self_link: Option<String>
     }
     #[derive(Serialize,Deserialize,Debug)]
-    struct EstimatedDiameter {
-        estimated_diameter_min: f64,
-        estimated_diameter_max: f64
+    pub struct EstimatedDiameter {
+        pub estimated_diameter_min: f64,
+        pub estimated_diameter_max: f64
     }
     #[derive(Serialize,Deserialize,Debug)]
-    struct RelativeVelocity {
-        kilometers_per_second: String,
-        kilometers_per_hour: String,
-        miles_per_hour: String,
+    pub struct RelativeVelocity {
+        pub kilometers_per_second: String,
+        pub kilometers_per_hour: String,
+        pub miles_per_hour: String,
     }
     #[derive(Serialize,Deserialize,Debug)]
-    struct MissDistance {
-        astronomical: String,
-        lunar: String,
-        kilometers: String,
-        miles: String,
+    pub struct MissDistance {
+        pub astronomical: String,
+        pub lunar: String,
+        pub kilometers: String,
+        pub miles: String,
     }
     #[derive(Serialize,Deserialize,Debug)]
-    struct CloseApproachEvent {
-        close_approach_date: String,
-        close_approach_date_full: String,
-        epoch_date_close_approach: usize,
-        relative_velocity: RelativeVelocity,
-        miss_distance: MissDistance,
-        orbiting_body: String,
+    pub struct CloseApproachEvent {
+        pub close_approach_date: String,
+        pub close_approach_date_full: String,
+        pub epoch_date_close_approach: usize,
+        pub relative_velocity: RelativeVelocity,
+        pub miss_distance: MissDistance,
+        pub orbiting_body: String,
     }
     #[derive(Serialize,Deserialize,Debug)]
-    struct NearEarthObject {
-        links: Links,
-        id: String,
-        neo_reference_id: String,
-        nasa_jpl_url: String,
-        absolute_magnitude_h: f64,
+    pub struct NearEarthObject {
+        pub links: Links,
+        pub id: String,
+        pub neo_reference_id: String,
+        pub nasa_jpl_url: String,
+        pub absolute_magnitude_h: f64,
         // change string to some enum?
-        estimated_diameter: HashMap<String, EstimatedDiameter>,
-        close_approach_data: Vec<CloseApproachEvent>,
-        is_sentry_object: bool
+        pub estimated_diameter: HashMap<String, EstimatedDiameter>,
+        pub close_approach_data: Vec<CloseApproachEvent>,
+        pub is_sentry_object: bool
     }
-    #[derive(Serialize,Deserialize,Debug,Default)]
+    #[derive(Serialize,Deserialize,Debug)]
     pub struct NearEarthObjectResponse {
-        links: Links,
-        element_count: usize,
-        near_earth_objects: HashMap<String, Vec<NearEarthObject>>
+        pub links: Links,
+        pub element_count: usize,
+        pub near_earth_objects: HashMap<String, Vec<NearEarthObject>>
     }
 }
 
