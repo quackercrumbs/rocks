@@ -4,7 +4,7 @@ use tokio::runtime::Runtime;
 use bevy::prelude::*;
 use bevy::tasks::IoTaskPool;
 use configparser::ini::Ini;
-use rocks::nasa;
+use rocks::nasa::{self, models::NearEarthObjectResponse};
 use bevy_egui::{egui, EguiContext, EguiPlugin};
 
 fn initialize_world(
@@ -34,13 +34,6 @@ fn initialize_world(
 pub struct RocksPlugin;
 impl Plugin for RocksPlugin {
     fn build(&self, app: &mut App) {
-
-        // initialize API client
-        let mut private_config = Ini::new();
-        private_config.load("config/private.ini").expect("unable to load config from: config/private.ini");
-        let nasa_api_key = private_config.get("topsecrets","NASA_API_KEY").expect("could not find NASA_API_KEY");
-        let near_earth_object_client = nasa::client::NearEarthObjectClient::new(&nasa_api_key);
-
         app.add_startup_system(initialize_world)
         .insert_resource(AmbientLight {
             color: Color::WHITE,
@@ -49,8 +42,7 @@ impl Plugin for RocksPlugin {
         .add_plugin(EguiPlugin)
         .init_resource::<UiState>()
         .add_system(controls_ui)
-        .add_system(read_new_near_earth_object_data_stream)
-        .insert_resource(near_earth_object_client);
+        .add_system(read_new_near_earth_object_data_stream);
     }
 }
 
@@ -85,9 +77,9 @@ fn controls_ui(
             let query_button = ui.button("Query");
             if query_button.clicked() {
                 // fire off event to query for Nasa data (and possibly recreate NEOs)
-                info!("params: date_range={}", ui.date_range);
+                info!("params: date_range={:?}", ui_state.date_range);
                 if let Err(e) = data_request_sender.0.send(
-                    DateRange{ start_date: ui.date_range.start_date, end_date: ui.date_range.end_range }
+                    DateRange{ start_date: ui_state.date_range.start_date.clone(), end_date: ui_state.date_range.end_date.clone() }
                 ) {
                     error!("Error when trying to send data request {:?}", e)
                 }
@@ -117,10 +109,16 @@ struct NearEarthObjectDataRequestSender(tokio::sync::mpsc::UnboundedSender<DateR
 
 fn main() -> Result<(), Box<dyn std::error::Error>>{
 
+    // initialize API client
+    let mut private_config = Ini::new();
+    private_config.load("config/private.ini").expect("unable to load config from: config/private.ini");
+    let nasa_api_key = private_config.get("topsecrets","NASA_API_KEY").expect("could not find NASA_API_KEY");
+    let near_earth_object_client = nasa::client::NearEarthObjectClient::new(&nasa_api_key);
+
     // setup runtime to handle external calls
     // create channel used to communicate between bevy ECS to tokio
-    let (request_data_sender, mut request_data_receiver) = tokio::sync::mpsc::unbounded_channel::<UiState>();
-    let (response_data_sender, rx_response_data_receiver) = tokio::sync::mpsc::unbounded_channel::<UiState>();
+    let (request_data_sender, mut request_data_receiver) = tokio::sync::mpsc::unbounded_channel::<DateRange>();
+    let (response_data_sender, response_data_receiver) = tokio::sync::mpsc::unbounded_channel::<NearEarthObjectResponse>();
 
     // Create the runtime
     let rt  = Runtime::new()?;
@@ -128,10 +126,14 @@ fn main() -> Result<(), Box<dyn std::error::Error>>{
         loop {
             // listen for data retrieval requests
             match request_data_receiver.recv().await {
-                Some(v) =>{
-                    println!("Got message in tokio: {:?}", v);
-                    if let Err(_) = response_data_sender.send(NearEarthObjectResponse::default()) {
-                        println!("The reciever dropped for response_data");
+                Some(date_range) =>{
+                    println!("Got message in tokio: {:?}", date_range);
+                    if let Ok(response) = near_earth_object_client.get_near_earth_objects(&date_range.start_date, &date_range.end_date).await {
+                        if let Err(_) = response_data_sender.send(response) {
+                            println!("The reciever dropped for response_data");
+                        }
+                    } else {
+                        println!("Error when trying to call api with date_range={:?}", date_range)
                     }
                 },
                 None => println!("sender dropped")
@@ -143,8 +145,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>>{
         .insert_resource(Msaa {samples: 4})
         .add_plugins(DefaultPlugins)
         .add_plugin(RocksPlugin)
-        .insert_resource(NearEarthObjectDataReciever(rx_response_data))
-        .insert_resource(NearEarthObjectDataRequestSender(tx_request_data))
+        .insert_resource(NearEarthObjectDataReciever(response_data_receiver))
+        .insert_resource(NearEarthObjectDataRequestSender(request_data_sender))
         .run();
     
     Ok(())
