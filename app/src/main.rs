@@ -49,8 +49,6 @@ impl Plugin for RocksPlugin {
         .add_plugin(EguiPlugin)
         .init_resource::<UiState>()
         .add_system(controls_ui)
-        .add_event::<NearEarchObjectUpdateRequestEvent>()
-        .add_system(near_earth_object_update_request_handler)
         .add_system(read_new_near_earth_object_data_stream)
         .insert_resource(near_earth_object_client);
     }
@@ -58,56 +56,44 @@ impl Plugin for RocksPlugin {
 
 #[derive(Default, Debug)]
 struct UiState {
+    date_range: DateRange,
+}
+
+#[derive(Default, Debug)]
+struct DateRange {
     start_date: String,
     end_date: String,
 }
 
-#[derive(Debug)]
-struct NearEarchObjectUpdateRequestEvent(UiState);
-
 fn controls_ui(
     mut egui_context: ResMut<EguiContext>,
     mut ui_state: ResMut<UiState>,
-    mut ev_update_request: EventWriter<NearEarchObjectUpdateRequestEvent>,
+    data_request_sender: Res<NearEarthObjectDataRequestSender>,
 ) {
     egui::Window::new("Controls").show(egui_context.ctx_mut(), |ui| {
 
         ui.horizontal(|ui| {
             ui.label("Start date: ");
-            ui.text_edit_singleline(&mut ui_state.start_date);
+            ui.text_edit_singleline(&mut ui_state.date_range.start_date);
         });
         ui.horizontal(|ui| {
             ui.label("End date: ");
-            ui.text_edit_singleline(&mut ui_state.end_date);
+            ui.text_edit_singleline(&mut ui_state.date_range.end_date);
         });
 
         ui.horizontal(|ui| {
             let query_button = ui.button("Query");
             if query_button.clicked() {
                 // fire off event to query for Nasa data (and possibly recreate NEOs)
-                info!("params: start_date={} end_date={}", &ui_state.start_date, &ui_state.end_date);
-                ev_update_request.send(NearEarchObjectUpdateRequestEvent(UiState{
-                    start_date: ui_state.start_date.clone(),
-                    end_date: ui_state.end_date.clone(),
-                }));
+                info!("params: date_range={}", ui.date_range);
+                if let Err(e) = data_request_sender.0.send(
+                    DateRange{ start_date: ui.date_range.start_date, end_date: ui.date_range.end_range }
+                ) {
+                    error!("Error when trying to send data request {:?}", e)
+                }
             }
         });
     });
-}
-
-fn near_earth_object_update_request_handler(
-    mut ev_update_request: EventReader<NearEarchObjectUpdateRequestEvent>,
-    data_request_sender: Res<NearEarthObjectDataRequestSender>,
-) {
-    // just need to read the first one, don't care about the others because they will be cleared at the next frame
-    // also we want to ignore all the spam clicks
-    if let Some(request) = ev_update_request.iter().next() {
-        info!("Update request recieved! {:?}", request);
-        if let Err(e) = data_request_sender.0.send(UiState{start_date: "sender".into(), end_date: "sender".into()}) {
-            error!("Error when trying to send data request {:?}", e)
-        }
-
-    }
 }
 
 fn read_new_near_earth_object_data_stream(
@@ -126,24 +112,25 @@ fn read_new_near_earth_object_data_stream(
     }
 }
 
-struct NearEarthObjectDataReciever(tokio::sync::mpsc::UnboundedReceiver<UiState>);
-struct NearEarthObjectDataRequestSender(tokio::sync::mpsc::UnboundedSender<UiState>);
+struct NearEarthObjectDataReciever(tokio::sync::mpsc::UnboundedReceiver<nasa::models::NearEarthObjectResponse>);
+struct NearEarthObjectDataRequestSender(tokio::sync::mpsc::UnboundedSender<DateRange>);
 
 fn main() -> Result<(), Box<dyn std::error::Error>>{
+
     // setup runtime to handle external calls
     // create channel used to communicate between bevy ECS to tokio
-    let (tx_request_data, mut rx_request_data) = tokio::sync::mpsc::unbounded_channel::<UiState>();
-    let (tx_response_data, rx_response_data) = tokio::sync::mpsc::unbounded_channel::<UiState>();
+    let (request_data_sender, mut request_data_receiver) = tokio::sync::mpsc::unbounded_channel::<UiState>();
+    let (response_data_sender, rx_response_data_receiver) = tokio::sync::mpsc::unbounded_channel::<UiState>();
 
     // Create the runtime
     let rt  = Runtime::new()?;
     rt.spawn( async move {
         loop {
             // listen for data retrieval requests
-            match rx_request_data.recv().await {
+            match request_data_receiver.recv().await {
                 Some(v) =>{
                     println!("Got message in tokio: {:?}", v);
-                    if let Err(_) = tx_response_data.send(UiState {start_date: "".into(), end_date: "".into()}) {
+                    if let Err(_) = response_data_sender.send(NearEarthObjectResponse::default()) {
                         println!("The reciever dropped for response_data");
                     }
                 },

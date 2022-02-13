@@ -47,7 +47,7 @@ pub mod models {
         close_approach_data: Vec<CloseApproachEvent>,
         is_sentry_object: bool
     }
-    #[derive(Serialize,Deserialize,Debug)]
+    #[derive(Serialize,Deserialize,Debug,Default)]
     pub struct NearEarthObjectResponse {
         links: Links,
         element_count: usize,
