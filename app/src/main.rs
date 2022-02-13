@@ -1,8 +1,6 @@
-use std::time::{Instant, Duration};
 use tokio::runtime::Runtime;
 
 use bevy::prelude::*;
-use bevy::tasks::IoTaskPool;
 use configparser::ini::Ini;
 use rocks::nasa::{self, models::NearEarthObjectResponse};
 use bevy_egui::{egui, EguiContext, EguiPlugin};
@@ -93,11 +91,10 @@ fn read_new_near_earth_object_data_stream(
 ) {
     match data_receiver.0.try_recv() {
         Ok(v) => {
-            info!("New near earth object data! {:?}", v);
+            info!("New near earth object data! {:?}", v.element_count);
+            // todo: send event to spawn asteroids?
         },
-        Err(Empty) => {
-            // do nothing
-        },
+        Err(tokio::sync::mpsc::error::TryRecvError::Empty) => (),
         Err(e) => {
             error!("Error when trying to read from data_reciever: {:?}", e);
         }
