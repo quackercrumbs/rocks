@@ -63,21 +63,21 @@ fn controls_ui(
     egui::Window::new("Controls").show(egui_context.ctx_mut(), |ui| {
 
         ui.horizontal(|ui| {
-            ui.label("Start date: ");
+            ui.label("Date: ");
             ui.text_edit_singleline(&mut ui_state.date_range.start_date);
-        });
-        ui.horizontal(|ui| {
-            ui.label("End date: ");
-            ui.text_edit_singleline(&mut ui_state.date_range.end_date);
         });
 
         ui.horizontal(|ui| {
             let query_button = ui.button("Query");
             if query_button.clicked() {
+                // todo: validate data
+
                 // fire off event to query for Nasa data (and possibly recreate NEOs)
                 info!("params: date_range={:?}", ui_state.date_range);
+                // NOTE: for now, only support querying data for 1 day
+                // NOTE: for now, force values to specific date
                 if let Err(e) = data_request_sender.0.send(
-                    DateRange{ start_date: ui_state.date_range.start_date.clone(), end_date: ui_state.date_range.end_date.clone() }
+                    DateRange{ start_date: "2020-01-01".into(), end_date: "2020-01-01".into() }
                 ) {
                     error!("Error when trying to send data request {:?}", e)
                 }
@@ -137,19 +137,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>>{
             match request_data_receiver.recv().await {
                 Some(date_range) =>{
                     println!("Got message in tokio: {:?}", date_range);
-                    // default values of empty
-                    let start_date = if date_range.start_date.is_empty() {
-                        "2020-01-01"
-                    } else {
-                        &date_range.start_date
-                    };
-                    let end_date = if date_range.end_date.is_empty() {
-                        "2020-01-01"
-                    } else {
-                        &date_range.end_date
-                    };
 
-                    if let Ok(response) = near_earth_object_client.get_near_earth_objects(start_date, end_date).await {
+                    if let Ok(response) = near_earth_object_client.get_near_earth_objects(&date_range.start_date, &date_range.end_date).await {
                         if let Err(_) = response_data_sender.send(response) {
                             println!("The reciever dropped for response_data");
                         }
