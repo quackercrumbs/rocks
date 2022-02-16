@@ -110,8 +110,7 @@ fn read_new_near_earth_object_data_stream(
                     let miss_distance = neo_object.close_approach_data
                         .first()
                         .map(|distance| String::from(&distance.miss_distance.kilometers));
-                    let estimated_diameter = neo_object.estimated_diameter
-                        .get("kilometers");                        
+                    let estimated_diameter = &neo_object.estimated_diameter.kilometers;                        
                     commands.spawn_bundle(PbrBundle {
                         mesh: meshes.add(Mesh::from(shape::Icosphere { radius: 0.1, subdivisions: 10})),
                         material: materials.add(Color::rgb(0.8, 0.7, 0.6).into()),
@@ -124,6 +123,7 @@ fn read_new_near_earth_object_data_stream(
         Err(tokio::sync::mpsc::error::TryRecvError::Empty) => (),
         Err(e) => {
             error!("Error when trying to read from data_reciever: {:?}", e);
+            // todo: close reciever?
         }
     }
 }

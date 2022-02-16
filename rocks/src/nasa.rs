@@ -36,6 +36,13 @@ pub mod models {
         pub orbiting_body: String,
     }
     #[derive(Serialize,Deserialize,Debug)]
+    pub struct EstimatedDiameters {
+        pub kilometers: EstimatedDiameter,
+        pub meters: EstimatedDiameter,
+        pub miles: EstimatedDiameter,
+        pub feet: EstimatedDiameter
+    }
+    #[derive(Serialize,Deserialize,Debug)]
     pub struct NearEarthObject {
         pub links: Links,
         pub id: String,
@@ -43,7 +50,7 @@ pub mod models {
         pub nasa_jpl_url: String,
         pub absolute_magnitude_h: f64,
         // change string to some enum?
-        pub estimated_diameter: HashMap<String, EstimatedDiameter>,
+        pub estimated_diameter: EstimatedDiameters,
         pub close_approach_data: Vec<CloseApproachEvent>,
         pub is_sentry_object: bool
     }
