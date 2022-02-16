@@ -5,14 +5,21 @@ use configparser::ini::Ini;
 use rocks::nasa::{self, models::NearEarthObjectResponse};
 use bevy_egui::{egui, EguiContext, EguiPlugin};
 
+// in kilometers
+const UNIT_SIZE: f32 = 10000.;
+
 fn initialize_world(
     mut commands: Commands,
-    ass: Res<AssetServer>,
+    ass: Res<AssetServer>
 ) {
+
+    const EARTH_DIAMETER_KM: f32 = 6378.137 * 2.;
+    const EARTH_DIAMETER: f32 = EARTH_DIAMETER_KM / UNIT_SIZE;
+
     // note that we have to include the `Scene0` label
     let earth_model = ass.load("models/earth.glb#Scene0");
     let earth_parent = (
-        Transform::from_xyz(0.0, 0.0, 0.0),
+        Transform::from_xyz(0.0, 0.0, 0.0).with_scale(Vec3::new(EARTH_DIAMETER,EARTH_DIAMETER,EARTH_DIAMETER)),
         GlobalTransform::identity(),
     );
     // to be able to position our 3d model:
@@ -71,7 +78,6 @@ fn controls_ui(
             let query_button = ui.button("Query");
             if query_button.clicked() {
                 // todo: validate data
-
                 // fire off event to query for Nasa data (and possibly recreate NEOs)
                 info!("params: date_range={:?}", ui_state.date_range);
                 // NOTE: for now, only support querying data for 1 day
@@ -98,12 +104,21 @@ fn read_new_near_earth_object_data_stream(
             // todo: send event to spawn asteroids?
             for (date, neo_objects) in v.near_earth_objects.iter() {
                 info!("date: {} num_objects: {}", date, neo_objects.len());
-                commands.spawn_bundle(PbrBundle {
-                    mesh: meshes.add(Mesh::from(shape::Icosphere { radius: 0.1, subdivisions: 10})),
-                    material: materials.add(Color::rgb(0.8, 0.7, 0.6).into()),
-                    transform: Transform::from_xyz(1., 0., 0.),
-                    ..Default::default()
-                });
+                for neo_object in neo_objects {
+                    // todo: calculate radius and distance
+                    // todo: instead of copying the string, convert to f32
+                    let miss_distance = neo_object.close_approach_data
+                        .first()
+                        .map(|distance| String::from(&distance.miss_distance.kilometers));
+                    let estimated_diameter = neo_object.estimated_diameter
+                        .get("kilometers");                        
+                    commands.spawn_bundle(PbrBundle {
+                        mesh: meshes.add(Mesh::from(shape::Icosphere { radius: 0.1, subdivisions: 10})),
+                        material: materials.add(Color::rgb(0.8, 0.7, 0.6).into()),
+                        transform: Transform::from_xyz(1., 0., 0.),
+                        ..Default::default()
+                    });
+                }
             }
         },
         Err(tokio::sync::mpsc::error::TryRecvError::Empty) => (),
