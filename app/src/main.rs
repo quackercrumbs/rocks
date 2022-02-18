@@ -63,6 +63,7 @@ fn controls_ui(
     mut egui_context: ResMut<EguiContext>,
     mut ui_state: ResMut<UiState>,
     data_request_sender: Res<NearEarthObjectDataRequestSender>,
+    near_earth_objects: Query<&NearEarthObject>,
 ) {
     egui::Window::new("Controls").show(egui_context.ctx_mut(), |ui| {
 
@@ -74,46 +75,74 @@ fn controls_ui(
         ui.horizontal(|ui| {
             let query_button = ui.button("Query");
             if query_button.clicked() {
-                // todo: validate data
+                // todo: validate date is valid
+                let date = if ui_state.date_range.start_date.trim().is_empty() {
+                    "2020-01-01"
+                } else {
+                    ui_state.date_range.start_date.trim()
+                };
                 // fire off event to query for Nasa data (and possibly recreate NEOs)
                 info!("params: date_range={:?}", ui_state.date_range);
                 // NOTE: for now, only support querying data for 1 day
-                // NOTE: for now, force values to specific date
                 if let Err(e) = data_request_sender.0.send(
-                    DateRange{ start_date: "2020-01-01".into(), end_date: "2020-01-01".into() }
+                    DateRange{ start_date: date.into(), end_date: date.into() }
                 ) {
                     error!("Error when trying to send data request {:?}", e)
                 }
             }
         });
+
+        for object in near_earth_objects.iter() {
+            ui.horizontal(|ui| {
+                if ui.button(format!("{}", object.0)).on_hover_text("Click to copy").clicked() {
+                    ui.output().copied_text = format!("{}", object.0);
+                }
+            });
+        }
+
     });
 }
+
+#[derive(Component)]
+struct NearEarthObject(String);
 
 fn read_new_near_earth_object_data_stream(
     mut data_receiver: ResMut<NearEarthObjectDataReciever>,
     mut commands: Commands,
     mut meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<StandardMaterial>>,
+    existing_near_earth_objects: Query<(Entity, &NearEarthObject)>,
 ) {
     match data_receiver.0.try_recv() {
         Ok(v) => {
             info!("New near earth object data! {:?}", v.element_count);
+
+            // delete the existing objects
+            for (e, _object) in existing_near_earth_objects.iter() {
+                commands.entity(e).despawn();
+            }
+
             // todo: send event to spawn asteroids?
             for (date, neo_objects) in v.near_earth_objects.iter() {
                 info!("date: {} num_objects: {}", date, neo_objects.len());
                 for neo_object in neo_objects {
                     // todo: calculate radius and distance
                     // todo: instead of copying the string, convert to f32
-                    let miss_distance = neo_object.close_approach_data
-                        .first()
-                        .map(|distance| String::from(&distance.miss_distance.kilometers));
-                    let estimated_diameter = &neo_object.estimated_diameter.kilometers;                        
-                    commands.spawn_bundle(PbrBundle {
-                        mesh: meshes.add(Mesh::from(shape::Icosphere { radius: 0.1, subdivisions: 10})),
-                        material: materials.add(Color::rgb(0.8, 0.7, 0.6).into()),
-                        transform: Transform::from_xyz(1., 0., 0.),
-                        ..Default::default()
-                    });
+                    let close_approach_date = neo_object.close_approach_data
+                        .first();
+                    if let Some(close_approach_date) = close_approach_date {
+                        let miss_distance = close_approach_date.miss_distance.kilometers.parse::<f32>().ok()
+                        .map(|distance| distance / UNIT_SIZE);
+                        
+                        if let Some(miss_distance) = miss_distance {
+                            commands.spawn_bundle(PbrBundle {
+                                mesh: meshes.add(Mesh::from(shape::Icosphere { radius: 0.1, subdivisions: 10})),
+                                material: materials.add(Color::rgb(0.8, 0.7, 0.6).into()),
+                                transform: Transform::from_xyz(miss_distance, 0., 0.),
+                                ..Default::default()
+                            }).insert(NearEarthObject(neo_object.id.clone()));
+                         }
+                    }
                 }
             }
         },
