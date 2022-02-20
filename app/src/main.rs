@@ -103,6 +103,18 @@ fn controls_ui(
         
 
         ui.separator();
+        if ui.button("Reset Camera").clicked() {
+            // update camera back to original position
+            for (mut camera, mut transform) in camera.iter_mut() {
+                // todo: code duplicated from spawn_camera, we probably want dont want duplicated code ...
+                let translation = Vec3::new(-2.0, 2.5, 5.0);
+                let new_camera_transform = Transform::from_translation(translation)
+                    .looking_at(Vec3::ZERO, Vec3::Y);
+                transform.translation = new_camera_transform.translation;
+                transform.rotation = new_camera_transform.rotation;
+                camera.focus = new_camera_transform.translation;
+            }
+        }
         for (object_transform,object) in near_earth_objects.iter() {
             ui.horizontal(|ui| {
                 if ui.button(format!("{}", object.0)).on_hover_text("Click to copy").clicked() {
