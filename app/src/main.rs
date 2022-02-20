@@ -63,7 +63,8 @@ fn controls_ui(
     mut egui_context: ResMut<EguiContext>,
     mut ui_state: ResMut<UiState>,
     data_request_sender: Res<NearEarthObjectDataRequestSender>,
-    near_earth_objects: Query<&NearEarthObject>,
+    near_earth_objects: Query<(&Transform, &NearEarthObject), Without<camera::PanOrbitCamera>>,
+    mut camera: Query<(&mut camera::PanOrbitCamera, &mut Transform)>,
 ) {
     egui::Window::new("Controls").show(egui_context.ctx_mut(), |ui| {
 
@@ -91,11 +92,35 @@ fn controls_ui(
                 }
             }
         });
+        for (_camera, transform) in camera.iter() {
+            ui.horizontal(|ui| {
+                ui.label(format!("Camera Translation: {:?}", transform.translation));
+            });
+            ui.horizontal(|ui| {
+                ui.label(format!("Camera Rotation: {:?}", transform.rotation));
+            });
+        }
+        
 
-        for object in near_earth_objects.iter() {
+        ui.separator();
+        for (object_transform,object) in near_earth_objects.iter() {
             ui.horizontal(|ui| {
                 if ui.button(format!("{}", object.0)).on_hover_text("Click to copy").clicked() {
                     ui.output().copied_text = format!("{}", object.0);
+                }
+                if ui.button("focus").clicked() {
+                    // update camera focus point
+                    // todo: update the zoom to match pan_orbit camera (or update pan_orbit camera zoom)
+                    for (mut camera, mut transform) in camera.iter_mut() {
+                        let new_camera_transform = Transform{
+                            translation: object_transform.translation - 1.,
+                            ..Default::default()
+                        };
+                        let new_camera_transform = new_camera_transform.looking_at(object_transform.translation, Vec3::Y);
+                        transform.translation = new_camera_transform.translation;
+                        transform.rotation = new_camera_transform.rotation;
+                        camera.focus = object_transform.translation;
+                    }
                 }
             });
         }
@@ -137,7 +162,7 @@ fn read_new_near_earth_object_data_stream(
                         if let Some(miss_distance) = miss_distance {
                             commands.spawn_bundle(PbrBundle {
                                 mesh: meshes.add(Mesh::from(shape::Icosphere { radius: 0.1, subdivisions: 10})),
-                                material: materials.add(Color::rgb(0.8, 0.7, 0.6).into()),
+                                material: materials.add(Color::rgb(1., 1., 0.0).into()),
                                 transform: Transform::from_xyz(miss_distance, 0., 0.),
                                 ..Default::default()
                             }).insert(NearEarthObject(neo_object.id.clone()));
